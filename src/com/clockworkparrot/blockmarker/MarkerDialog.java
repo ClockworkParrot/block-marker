@@ -25,6 +25,12 @@ public class MarkerDialog extends BaseDialog {
 
     public MarkerDialog() {
         super("blockmarker");
+        // 底部按钮只在构造期初始化一次：BaseDialog 已加默认关闭按钮，
+        // 这里只补一个「全部清除」，之后每次打开不再 clear buttons，否则会清掉默认关闭按钮
+        buttons.button("全部清除", Icon.trash, () -> {
+            MarkStore.clearAll();
+            rebuild();
+        }).size(150f, 44f);
     }
 
     /** 先 rebuild 再显示，保证列表始终最新。 */
@@ -35,9 +41,8 @@ public class MarkerDialog extends BaseDialog {
     }
 
     public void rebuild() {
-        // 必须同时清空 cont 与 buttons，否则每次打开都在底部累加按钮
+        // 只清 cont（列表区），buttons 保持默认关闭按钮 + 全部清除按钮
         cont.clear();
-        buttons.clear();
 
         cont.table(h -> {
             h.add("方块标记保护").color(Color.scarlet).left();
@@ -75,13 +80,6 @@ public class MarkerDialog extends BaseDialog {
         cont.button("检查更新 / 打开 GitHub Release", Icon.refresh, () -> {
             openUrl("https://github.com/ClockworkParrot/block-marker/releases/latest");
         }).size(280f, 44f).row();
-
-        buttons.button("全部清除", Icon.trash, () -> {
-            MarkStore.clearAll();
-            rebuild();
-        }).size(150f, 44f);
-
-        // BaseDialog 默认已提供关闭按钮，无需手动再加
     }
 
     private void buildRow(Table row, MarkStore.Mark m, Building b) {
