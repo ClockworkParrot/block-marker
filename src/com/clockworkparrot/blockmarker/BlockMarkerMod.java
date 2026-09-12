@@ -141,7 +141,12 @@ public class BlockMarkerMod extends Mod {
 
     public static void openPanel() {
         if (dialog == null) dialog = new MarkerDialog();
-        dialog.open();
+        // 按 H 键切换：已打开则关闭，未打开则打开。这样即使关闭按钮出问题也能用键盘退出
+        if (dialog.visible) {
+            dialog.hide();
+        } else {
+            dialog.open();
+        }
     }
 
     /** 启动时异步检查更新（不阻塞主线程）。 */
