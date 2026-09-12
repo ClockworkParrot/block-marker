@@ -6,6 +6,7 @@ import arc.graphics.Color;
 import arc.input.KeyCode;
 import arc.scene.ui.TextButton;
 import arc.struct.ObjectMap;
+import arc.util.Time;
 import mindustry.Vars;
 import mindustry.game.EventType;
 import mindustry.gen.Building;
@@ -40,8 +41,14 @@ public class BlockMarkerMod extends Mod {
     private static String captureSetting;
     private static final ObjectMap<String, TextButton> captureButtons = new ObjectMap<>();
 
+    //G 键按住连续标记（同格节流）
+    private static long lastMarkMillis;
+    private static Tile lastMarked;
+
     @Override
     public void init() {
+        // 记录 mod.hjson 路径（实例方法在静态工具方法里用）
+        setConfig(getConfig());
         MarkStore.init();
         Protector.init();
         MarkerRenderer.init();
@@ -65,8 +72,17 @@ public class BlockMarkerMod extends Mod {
                     keyRow(t, KEY_MARK, "标记/取消标记（光标处）");
                     keyRow(t, KEY_PANEL, "打开标记管理面板");
                     refreshCaptureButtons();
+                    // 启动检查更新开关
+                    t.check("启动时检查更新", MarkStore.checkUpdate(), v -> {
+                        Core.settings.put(MarkStore.SET_CHECK_UPDATE, v);
+                    }).left().padLeft(6f).row();
                 });
             });
+
+            // 启动时静默检查更新
+            if (MarkStore.checkUpdate()) {
+                checkUpdate();
+            }
         }
     }
 
@@ -81,6 +97,19 @@ public class BlockMarkerMod extends Mod {
         if (Core.input.keyTap(keyMark())) {
             Tile t = world.tileWorld(Core.input.mouseWorldX(), Core.input.mouseWorldY());
             toggleTile(t, true);
+        }
+        //按住 G 连续标记：光标移动到新建筑时每帧标记（同格节流，避免疯狂提示）
+        if (Core.input.keyDown(keyMark()) && !Core.input.keyTap(keyMark())) {
+            Tile t = world.tileWorld(Core.input.mouseWorldX(), Core.input.mouseWorldY());
+            long now = Time.millis();
+            if (t != lastMarked && t != null && t.build != null && t.build.team == Vars.player.team()
+                && MarkStore.get(t.build) == null && now - lastMarkMillis >= 60) {
+                lastMarked = t;
+                lastMarkMillis = now;
+                toggleTile(t, false);
+            }
+        } else if (!Core.input.keyDown(keyMark())) {
+            lastMarked = null;
         }
         if (Core.input.keyTap(keyPanel())) {
             openPanel();
@@ -113,6 +142,67 @@ public class BlockMarkerMod extends Mod {
     public static void openPanel() {
         if (dialog == null) dialog = new MarkerDialog();
         dialog.open();
+    }
+
+    /** 启动时异步检查更新（不阻塞主线程）。 */
+    public static void checkUpdate() {
+        try {
+            new Thread(() -> {
+                try {
+                    java.net.URL url = new java.net.URL(
+                        "https://api.github.com/repos/ClockworkParrot/block-marker/releases/latest");
+                    java.net.HttpURLConnection c = (java.net.HttpURLConnection) url.openConnection();
+                    c.setConnectTimeout(5000);
+                    c.setReadTimeout(5000);
+                    c.setRequestProperty("User-Agent", "BlockMarker");
+                    if (c.getResponseCode() != 200) return;
+                    StringBuilder sb = new StringBuilder();
+                    try (java.io.BufferedReader r = new java.io.BufferedReader(
+                            new java.io.InputStreamReader(c.getInputStream(), "UTF-8"))) {
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+                    }
+                    String body = sb.toString();
+                    int i = body.indexOf("\"tag_name\"");
+                    if (i < 0) return;
+                    int q1 = body.indexOf('"', i + 12), q2 = body.indexOf('"', q1 + 1);
+                    if (q1 < 0 || q2 < 0) return;
+                    String tag = body.substring(q1 + 1, q2);
+                    String local = version();
+                    if (local != null && tag.equals(local)) return;
+                    if (!Vars.headless) {
+                        Time.run(0f, () -> toast("发现新版本 " + tag + "（当前 " + local + "），可到 GitHub Release 下载"));
+                    }
+                } catch (Exception ignored) {
+                }
+            }, "blockmarker-update-check").start();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 从 mod.hjson 读取当前版本。 */
+    public static String version() {
+        try {
+            arc.files.Fi cfg = configFile;
+            if (cfg != null && cfg.exists()) {
+                String txt = cfg.readString("UTF-8");
+                for (String line : txt.split("\\R")) {
+                    String s = line.trim();
+                    if (s.startsWith("version:")) {
+                        return s.substring("version:".length()).trim();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "unknown";
+    }
+
+    private static arc.files.Fi configFile;
+
+    /** 实例侧记录 mod.hjson 路径。 */
+    static void setConfig(arc.files.Fi f) {
+        configFile = f;
     }
 
     static void toast(String msg) {

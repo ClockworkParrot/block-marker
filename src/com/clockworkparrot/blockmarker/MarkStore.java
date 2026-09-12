@@ -62,6 +62,23 @@ public class MarkStore {
 
     private static int colorIndex;
 
+    /** 设置键：是否显示标记文字。 */
+    public static final String SET_SHOW_LABEL = "blockmarker.showLabel";
+    /** 设置键：是否启动时静默检查更新。 */
+    public static final String SET_CHECK_UPDATE = "blockmarker.checkUpdate";
+
+    public static boolean showLabel() {
+        return Core.settings.getBool(SET_SHOW_LABEL, true);
+    }
+
+    public static void setShowLabel(boolean v) {
+        Core.settings.put(SET_SHOW_LABEL, v);
+    }
+
+    public static boolean checkUpdate() {
+        return Core.settings.getBool(SET_CHECK_UPDATE, false);
+    }
+
     /** 初始化：挂接事件（读档加载、清理失效标记）。 */
     public static void init() {
         Events.on(EventType.WorldLoadEvent.class, e -> load());
@@ -164,10 +181,14 @@ public class MarkStore {
                 m.y = y;
                 m.label = java.net.URLDecoder.decode(sp[2], StandardCharsets.UTF_8);
                 m.colorHex = sp[3];
+                // 立即解析颜色，避免 transient 字段反复重建
+                m.color = Color.valueOf(sp[3]);
                 marks.put(Point2.pack(x, y), m);
             } catch (Exception ignored) {
             }
         }
+        //恢复颜色索引：让新增标记不重复用色（按当前标记数推进）
+        colorIndex = marks.size % palette.length;
     }
 
     /** 提示一条 HUD 消息（节流，避免刷屏）。 */

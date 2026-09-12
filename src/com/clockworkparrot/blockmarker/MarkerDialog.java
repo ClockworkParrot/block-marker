@@ -12,6 +12,10 @@ import mindustry.ui.Styles;
 import mindustry.ui.dialogs.BaseDialog;
 import mindustry.world.Tile;
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
+
 import static mindustry.Vars.control;
 import static mindustry.Vars.ui;
 import static mindustry.Vars.world;
@@ -31,7 +35,9 @@ public class MarkerDialog extends BaseDialog {
     }
 
     public void rebuild() {
+        // 必须同时清空 cont 与 buttons，否则每次打开都在底部累加按钮
         cont.clear();
+        buttons.clear();
 
         cont.table(h -> {
             h.add("方块标记保护").color(Color.scarlet).left();
@@ -60,12 +66,22 @@ public class MarkerDialog extends BaseDialog {
             rebuild();
         }).size(220f, 44f).padTop(6f).row();
 
+        // 显示文字开关
+        cont.check("显示标记文字", MarkStore.showLabel(), v -> {
+            MarkStore.setShowLabel(v);
+        }).left().padLeft(6f).row();
+
+        // 打开更新页（v8 内嵌浏览器不一定可用，回退到系统浏览器）
+        cont.button("检查更新 / 打开 GitHub Release", Icon.refresh, () -> {
+            openUrl("https://github.com/ClockworkParrot/block-marker/releases/latest");
+        }).size(280f, 44f).row();
+
         buttons.button("全部清除", Icon.trash, () -> {
             MarkStore.clearAll();
             rebuild();
         }).size(150f, 44f);
 
-        buttons.button("关闭", this::hide).size(150f, 44f);
+        // BaseDialog 默认已提供关闭按钮，无需手动再加
     }
 
     private void buildRow(Table row, MarkStore.Mark m, Building b) {
@@ -114,5 +130,16 @@ public class MarkerDialog extends BaseDialog {
             MarkStore.save();
             rebuild();
         });
+    }
+
+    /** 打开外链（回退到系统浏览器）。 */
+    private static void openUrl(String url) {
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(new URI(url));
+            }
+        } catch (IOException | java.net.URISyntaxException e) {
+            BlockMarkerMod.toast("打开失败：" + url);
+        }
     }
 }

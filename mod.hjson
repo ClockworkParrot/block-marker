@@ -14,7 +14,7 @@ main: "com.clockworkparrot.blockmarker.BlockMarkerMod"
 description: "给建筑添加自定义标记（可改名、可换色），被标记的建筑不会被自己误拆除：拆除计划会被自动拦截并提示。默认 G 键标记/取消光标处建筑，H 键打开标记管理面板，按键可在游戏设置中修改。"
 
 #the mod version
-version: 1.0.0
+version: 1.1.0
 
 #the minimum game build required to run this mod
 minGameVersion: 158

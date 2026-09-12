@@ -22,6 +22,7 @@ public class MarkerRenderer {
 
     static void draw() {
         if (Vars.state == null || Vars.state.isMenu() || MarkStore.marks.isEmpty()) return;
+        boolean showLabel = MarkStore.showLabel();
 
         for (MarkStore.Mark m : MarkStore.marks.values()) {
             Tile t = Vars.world.tile(m.x, m.y);
@@ -36,7 +37,7 @@ public class MarkerRenderer {
             Lines.rect(b.x - s / 2f, b.y - s / 2f, s, s);
             Fill.square(b.x, b.y, 3f, 45f);
 
-            if (m.label != null && !m.label.isEmpty()) {
+            if (showLabel && m.label != null && !m.label.isEmpty()) {
                 Drawf.text(m.label, b.x, b.y + s / 2f + 8f, c);
             }
         }
