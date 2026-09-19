@@ -141,13 +141,9 @@ public class BlockMarkerMod extends Mod {
 
     public static void openPanel() {
         if (dialog == null) dialog = new MarkerDialog();
-        // 用 isShown() 判断当前是否真的显示中（hide 后为 false，show 后为 true）
-        // hide() 只隐藏窗口本身，不破坏监听器，下次 open 还能正常 show
-        if (dialog.isShown()) {
-            dialog.hide();
-        } else {
-            dialog.open();
-        }
+        // 由 MarkerDialog 自己维护显示状态（覆盖 show/hide/remove），
+        // 不依赖父类 isShown()/visible——它们在某些关闭路径下不可靠
+        dialog.toggle();
     }
 
     /** 启动时异步检查更新（不阻塞主线程）。 */
