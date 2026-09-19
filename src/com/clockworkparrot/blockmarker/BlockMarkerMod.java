@@ -141,8 +141,9 @@ public class BlockMarkerMod extends Mod {
 
     public static void openPanel() {
         if (dialog == null) dialog = new MarkerDialog();
-        // 按 H 键切换：已打开则关闭，未打开则打开。这样即使关闭按钮出问题也能用键盘退出
-        if (dialog.visible) {
+        // 用 isShown() 判断当前是否真的显示中（hide 后为 false，show 后为 true）
+        // hide() 只隐藏窗口本身，不破坏监听器，下次 open 还能正常 show
+        if (dialog.isShown()) {
             dialog.hide();
         } else {
             dialog.open();
