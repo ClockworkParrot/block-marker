@@ -92,7 +92,22 @@ public class BlockMarkerMod extends Mod {
         handleCapture();
 
         if (Vars.state == null || Vars.state.isMenu()) return;
-        if (Core.scene == null || Core.scene.hasField() || Core.scene.hasDialog()) return;
+        if (Core.scene == null || Core.scene.hasField()) return;
+
+        // H 键切换：先于 hasDialog 检查，避免面板打开后 H 键被屏蔽
+        if (Core.input.keyTap(keyPanel())) {
+            if (Core.scene.hasDialog()) {
+                MarkerDialog d = dialog;
+                dialog = null;
+                if (d != null) d.hide();
+            } else {
+                openPanel();
+            }
+            return;
+        }
+
+        // 面板打开时不处理其他键（由面板内部交互接管）
+        if (Core.scene.hasDialog()) return;
 
         if (Core.input.keyTap(keyMark())) {
             Tile t = world.tileWorld(Core.input.mouseWorldX(), Core.input.mouseWorldY());
@@ -110,9 +125,6 @@ public class BlockMarkerMod extends Mod {
             }
         } else if (!Core.input.keyDown(keyMark())) {
             lastMarked = null;
-        }
-        if (Core.input.keyTap(keyPanel())) {
-            openPanel();
         }
     }
 
@@ -141,9 +153,11 @@ public class BlockMarkerMod extends Mod {
 
     public static void openPanel() {
         if (dialog == null) dialog = new MarkerDialog();
-        // 由 MarkerDialog 自己维护显示状态（覆盖 show/hide/remove），
-        // 不依赖父类 isShown()/visible——它们在某些关闭路径下不可靠
-        dialog.toggle();
+        // 不做切换逻辑：之前几次尝试（dialog.visible / isShown() / VisibilityEvent 监听）
+        // 都因为 libgdx Window 的内部状态与 arc Dialog 的显示状态不同步而失败。
+        // 关闭走面板自带的 close 按钮（BaseDialog 默认带），它走的是标准 remove 路径，
+        // 多次开关都能正常工作。
+        dialog.open();
     }
 
     /** 启动时异步检查更新（不阻塞主线程）。 */

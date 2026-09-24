@@ -3,7 +3,6 @@ package com.clockworkparrot.blockmarker;
 import arc.Core;
 import arc.graphics.Color;
 import arc.math.geom.Vec2;
-import arc.scene.event.VisibilityEvent;
 import arc.scene.ui.layout.Table;
 import mindustry.gen.Building;
 import mindustry.gen.Icon;
@@ -24,44 +23,27 @@ import static mindustry.Vars.world;
 /** 标记管理面板：查看/重命名/换色/跳转/删除标记。 */
 public class MarkerDialog extends BaseDialog {
 
-    // 自维护显示状态：不依赖父类 isShown()/visible（close 路径下不可靠）。
-    // 用 libgdx 的 VisibilityEvent 监听——close 按钮/ESC/H 键任何路径触发 remove 都会发事件
-    private boolean shown = false;
-
     public MarkerDialog() {
         super("blockmarker");
-        // 监听显示/隐藏事件，任何 close 路径都会同步 shown 标志
-        addCaptureListener(evt -> {
-            if (evt instanceof VisibilityEvent) {
-                shown = !((VisibilityEvent) evt).isHide();
-            }
-            return false;
-        });
-        // 底部按钮只在构造期初始化一次：BaseDialog 已加默认关闭按钮，
-        // 这里只补一个「全部清除」，之后每次打开不再 clear buttons，否则会清掉默认关闭按钮
+        // BaseDialog 构造期不加关闭按钮也不加 ESC 监听，必须显式调用。
+        // addCloseButton() 添加左上角返回键，addCloseListener() 内部 closeOnBack() 让 ESC 生效。
+        addCloseButton();
+        addCloseListener();
+        // 底部按钮只在构造期初始化一次
         buttons.button("全部清除", Icon.trash, () -> {
             MarkStore.clearAll();
             rebuild();
         }).size(150f, 44f);
     }
 
-    /** 先 rebuild 再显示，保证列表始终最新。 */
+    /** 先 rebuild 再显示，保证列表始终最新。H 键反复按不会破坏已打开的面板。 */
     public void open() {
+        // 如果当前 stage 上的 dialog 就是自己，说明已打开，不做任何事
+        // （避免重复 show() 导致 libgdx Window 内部状态错乱）
+        if (Core.scene.getDialog() == this) return;
         rebuild();
         Sounds.click.play(1f);
         show();
-        shown = true;
-    }
-
-    /** 用自维护状态判断开合。H 键切换面板时调这个。 */
-    public void toggle() {
-        if (shown) close();
-        else open();
-    }
-
-    public void close() {
-        // hide() 会向 Stage 发 VisibilityEvent，触发 addCaptureListener 同步 shown=false
-        hide();
     }
 
     public void rebuild() {
@@ -71,6 +53,7 @@ public class MarkerDialog extends BaseDialog {
         cont.table(h -> {
             h.add("方块标记保护").color(Color.scarlet).left();
             h.add("  共 " + MarkStore.marks.size + " 处").color(Color.gray).left().padLeft(6f);
+            h.add("  v" + BlockMarkerMod.version()).color(Color.yellow).left().padLeft(6f);
         }).growX().row();
 
         cont.add(BlockMarkerMod.hintText()).color(Color.gray).left().padTop(4f).row();
